@@ -61,7 +61,15 @@ Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_spi.c \
 Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_spi_ex.c \
 Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_tim.c \
 Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_tim_ex.c \
-Core/Src/system_stm32l4xx.c  
+Core/Src/system_stm32l4xx.c \
+Core/Src/usb_descriptors.c \
+Core/Src/family.c \
+$(wildcard tinyusb/src/*.c) \
+$(wildcard tinyusb/src/*/*.c) \
+$(wildcard tinyusb/src/*/*/*.c) \
+$(wildcard tinyusb/src/*/*/*/*.c) \
+$(wildcard tinyusb/src/*/*/*/*/*.c) \
+$(wildcard tinyusb/src/*/*/*/*/*/*.c) \
 
 # ASM sources
 ASM_SOURCES =  \
@@ -122,7 +130,8 @@ C_INCLUDES =  \
 -IDrivers/STM32L4xx_HAL_Driver/Inc \
 -IDrivers/STM32L4xx_HAL_Driver/Inc/Legacy \
 -IDrivers/CMSIS/Device/ST/STM32L4xx/Include \
--IDrivers/CMSIS/Include
+-IDrivers/CMSIS/Include \
+-Itinyusb/src 
 
 
 # compile gcc flags

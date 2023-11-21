@@ -1,0 +1,6 @@
+11.21.23:
+- generated code from CubeMX and imported tinyusb library
+- commit
+- ported over tinyusb specific files from DISCO_MIDI
+- update makefile include tinyusb sources/includes (used DISCO_MIDI as inspiration)
+- 
