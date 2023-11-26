@@ -35,13 +35,14 @@ extern "C" {
 extern SPI_HandleTypeDef hspi1;
 
 /* USER CODE BEGIN Private defines */
-
+#define SPI_LENGTH 3
 /* USER CODE END Private defines */
 
 void MX_SPI1_Init(void);
 
 /* USER CODE BEGIN Prototypes */
-
+void Init_ADC(void);
+uint32_t Read_ADC(uint8_t CS, uint8_t CH );
 /* USER CODE END Prototypes */
 
 #ifdef __cplusplus

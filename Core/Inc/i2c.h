@@ -35,13 +35,14 @@ extern "C" {
 extern I2C_HandleTypeDef hi2c1;
 
 /* USER CODE BEGIN Private defines */
-
+#define I2C_LENGTH 2 // should this define be in main for portability??
 /* USER CODE END Private defines */
 
 void MX_I2C1_Init(void);
 
 /* USER CODE BEGIN Prototypes */
-
+void Reset_DAC(void);
+void Set_DAC(uint8_t value);
 /* USER CODE END Prototypes */
 
 #ifdef __cplusplus

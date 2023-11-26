@@ -24,7 +24,9 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "tusb.h"
+#include "tusb_config.h"
+#include "board_api.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -44,12 +46,24 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+int octave_num = 2;
+bool flag1 = false;
+bool flag2 = false;
+uint32_t ADC1_VAL[ 8 ]; // one element for each ADC channel (one device)
+uint32_t ADC2_VAL[ 8 ]; // one element for each ADC channel (one device)
+uint16_t KEYPRESS = 0;
+uint16_t KEYPRESSED = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
+
+// Separate into individual file eventually??
+void READ_KEYPRESS(uint32_t adc1_val[], uint32_t adc2_val[]);
+uint8_t HALL_TO_DAC(uint32_t adc1_val[], uint32_t adc2_val[], int octave_num);
+uint8_t DAC_TO_MIDI(uint8_t val);
+void MIDI_TASK(int octave_num);
 
 /* USER CODE END PFP */
 
@@ -78,10 +92,11 @@ int main(void)
   /* USER CODE END Init */
 
   /* Configure the system clock */
-  SystemClock_Config();
+  /* Disable System Clock Init - Use Custom Function */
+  //SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-
+  board_init();
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -90,12 +105,61 @@ int main(void)
   MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
 
+  /* Initialize tinyUSB */
+  tusb_init();
+  tud_task(); //necessary?
+
+  Init_ADC();
+  Reset_DAC();
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    /* Periodically call tinyUSB task */
+    tud_task();
+
+    // poll to see if octave up button pressed
+    if (!HAL_GPIO_ReadPin(GPIOC, OCTAVE_UP_Pin) && !flag1){
+      octave_num = octave_num + 1;
+      if(octave_num > 4) octave_num = 4;
+      flag1 = true;
+    }
+    if (HAL_GPIO_ReadPin(GPIOC, OCTAVE_UP_Pin)) flag1 = false;
+
+    // poll to see if octave down switch pressed
+    if (!HAL_GPIO_ReadPin(GPIOC, OCTAVE_DOWN_Pin) && !flag2){
+      octave_num = octave_num - 1;
+      if(octave_num < 0) octave_num = 0;
+      flag2 = true;
+    }
+    if (HAL_GPIO_ReadPin(GPIOC, OCTAVE_DOWN_Pin)) flag2 = false;
+
+    // Read values from all channels of ADC_1
+    for (int i = 0; i < 8; i++) {
+      ADC1_VAL[i] = Read_ADC(0,i); // CS = 0, CH = i
+    }
+    // Read values from all channels of ADC_2
+    for (int i = 0; i < 8; i++) {
+      ADC2_VAL[i] = Read_ADC(1,i); // CS = 1, CH = i
+    }
+
+    /* CHECK OUTPUT SWITCH, SEND 0x00 from DAC if in MIDI mode*/
+
+    // corresponds to DAC (analog) mode
+    // verify the configuration of mode select pin
+    if (!HAL_GPIO_ReadPin(GPIOC, MODE_SWITCH_Pin)){
+      Set_DAC(HALL_TO_DAC(ADC1_VAL,ADC2_VAL,octave_num)); // data byte, corresponds to each channel of one 8 channel DAC (eventually need 2 DACs)
+    }
+    /* EVENTUALLY should send DAC = 0 (SET GATE also eventually) AND midi signal */
+    else{
+      Set_DAC(0x0);
+      READ_KEYPRESS(ADC1_VAL,ADC2_VAL);
+      MIDI_TASK(octave_num);
+    }
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -148,6 +212,245 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+void MIDI_TASK(int octave_num){
+  uint8_t const cable_num = 0; // MIDI jack associated with USB endpoint
+  uint8_t const channel   = 0; // 0 for channel 1
+
+  // The MIDI interface always creates input and output port/jack descriptors
+  // regardless of these being used or not. Therefore incoming traffic should be read
+  // (possibly just discarded) to avoid the sender blocking in IO
+  uint8_t packet[4];
+  while ( tud_midi_available() ) tud_midi_packet_read(packet);
+
+  // delay necessary?
+  //HAL_Delay(20);
+  static int octave_history;
+
+  uint8_t note_on[3];
+  uint8_t note_off[3];
+
+  //note_on[0] = 0x90 | channel;
+  //note_on[1] = (42);
+  //note_on[2] = 127;
+  //tud_midi_stream_write(cable_num, note_on, 3);
+
+  
+  for(int i=0;i<12;i++){
+    if ((((KEYPRESS >> i) & 0x1) == 1) && ((KEYPRESSED >> i) == 0)){
+      KEYPRESSED = KEYPRESSED | (0x1 << i);
+      note_on[0] = 0x90 | channel;
+      note_on[1] = (12*octave_num + 24 + i);
+      note_on[2] = 127;
+      tud_midi_stream_write(cable_num, note_on, 3);
+    }
+    else if((((KEYPRESS >> i) & 0x1) == 1) && ((KEYPRESSED >> i) == 1)){
+      if(octave_history == octave_num) continue;
+      else {
+        note_off[0] = 0x80 | channel;
+        note_off[1] = (12*octave_history + 24 + i);
+        note_off[2] = 0;
+        tud_midi_stream_write(cable_num, note_off, 3);
+
+        KEYPRESSED = KEYPRESSED | (0x1 << i);
+        note_on[0] = 0x90 | channel;
+        note_on[1] = (12*octave_num + 24 + i);
+        note_on[2] = 127;
+        tud_midi_stream_write(cable_num, note_on, 3);
+      }
+    }
+    else if((((KEYPRESS >> i) & 0x1) == 0) && ((KEYPRESSED >> i) == 1)){
+      KEYPRESSED = KEYPRESSED & (0x0 << i);
+      note_off[0] = 0x80 | channel;
+      note_off[1] = (12*octave_num + 24 + i);
+      note_off[2] = 0;
+      tud_midi_stream_write(cable_num, note_off, 3);
+    }
+    else {
+      if(octave_history == octave_num) continue;
+      else {
+        note_off[0] = 0x80 | channel;
+        note_off[1] = (12*octave_history + 24 + i);
+        note_off[2] = 0;
+        tud_midi_stream_write(cable_num, note_off, 3);
+      }
+    }
+  }
+  octave_history = octave_num;  
+}
+
+/* READ ALL CURRENTLY PRESSED KEYS */
+void READ_KEYPRESS(uint32_t adc1_val[], uint32_t adc2_val[]) {
+   KEYPRESS = 0x0;
+   for (int i = 0; i < 12; i++) {
+        if (i < 6) {
+            if (adc1_val[i] > 600) KEYPRESS |= 0b1 << i;
+        } else {
+            if (adc2_val[i - 6] > 600) KEYPRESS |= 0b1 << i;
+        }
+    }
+}
+
+/* HALL EFFECT TO DAC OUTPUT CONVERSION */
+
+uint8_t HALL_TO_DAC(uint32_t adc1_val[], uint32_t adc2_val[], int octave_num) {
+    int channel_num = 12;
+    
+   for (int i = 0; i < 12; i++) {
+        if (i < 6) {
+            if (adc1_val[i] > 600) {
+                channel_num = i;
+                break;
+            }
+        } else {
+            if (adc2_val[i - 6] > 600) {
+                channel_num = i;
+                break;
+            }
+        }
+    }
+    
+    if (octave_num == 0) { // 0-50
+        if (channel_num == 0) {
+            return 3;
+        } else if (channel_num == 1) {
+            return 7;
+        } else if (channel_num == 2) {
+            return 11;
+        } else if (channel_num == 3) {
+            return 15;
+        } else if (channel_num == 4) {
+            return 19;
+        } else if (channel_num == 5) {
+            return 23;
+        } else if (channel_num == 6) {
+            return 27;
+        } else if (channel_num == 7) {
+            return 31;
+        } else if (channel_num == 8) {
+            return 35;
+        } else if (channel_num == 9) {
+            return 39;
+        } else if (channel_num == 10) {
+            return 43;
+        } else if (channel_num == 11) {
+            return 47;
+        }
+    } else if (octave_num == 1) { // 51-101
+        if (channel_num == 0) {
+            return 54;
+        } else if (channel_num == 1) {
+            return 58;
+        } else if (channel_num == 2) {
+            return 62;
+        } else if (channel_num == 3) {
+            return 66;
+        } else if (channel_num == 4) {
+            return 70;
+        } else if (channel_num == 5) {
+            return 74;
+        } else if (channel_num == 6) {
+            return 78;
+        } else if (channel_num == 7) {
+            return 82;
+        } else if (channel_num == 8) {
+            return 86;
+        } else if (channel_num == 9) {
+            return 90;
+        } else if (channel_num == 10) {
+            return 94;
+        } else if (channel_num == 11) {
+            return 98;
+        }
+    } else if (octave_num == 2) { // 102-152
+        if (channel_num == 0) {
+            return 105;
+        } else if (channel_num == 1) {
+            return 109;
+        } else if (channel_num == 2) {
+            return 113;
+        } else if (channel_num == 3) {
+            return 117;
+        } else if (channel_num == 4) {
+            return 121;
+        } else if (channel_num == 5) {
+            return 125;
+        } else if (channel_num == 6) {
+            return 129;
+        } else if (channel_num == 7) {
+            return 133;
+        } else if (channel_num == 8) {
+            return 137;
+        } else if (channel_num == 9) {
+            return 141;
+        } else if (channel_num == 10) {
+            return 145;
+        } else if (channel_num == 11) {
+            return 149;
+        }
+    } else if (octave_num == 3) { // 153-203
+        if (channel_num == 0) {
+            return 156;
+        } else if (channel_num == 1) {
+            return 160;
+        } else if (channel_num == 2) {
+            return 164;
+        } else if (channel_num == 3) {
+            return 168;
+        } else if (channel_num == 4) {
+            return 172;
+        } else if (channel_num == 5) {
+            return 176;
+        } else if (channel_num == 6) {
+            return 180;
+        } else if (channel_num == 7) {
+            return 184;
+        } else if (channel_num == 8) {
+            return 188;
+        } else if (channel_num == 9) {
+            return 192;
+        } else if (channel_num == 10) {
+            return 196;
+        } else if (channel_num == 11) {
+            return 200;
+        }
+    } else { // 204-255
+        if (channel_num == 0) {
+            return 207;
+        } else if (channel_num == 1) {
+            return 211;
+        } else if (channel_num == 2) {
+            return 215;
+        } else if (channel_num == 3) {
+            return 219;
+        } else if (channel_num == 4) {
+            return 223;
+        } else if (channel_num == 5) {
+            return 227;
+        } else if (channel_num == 6) {
+            return 231;
+        } else if (channel_num == 7) {
+            return 235;
+        } else if (channel_num == 8) {
+            return 239;
+        } else if (channel_num == 9) {
+            return 243;
+        } else if (channel_num == 10) {
+            return 247;
+        } else if (channel_num == 11) {
+            return 251;
+        } 
+    }
+    return 0x0;
+}
+
+// need to also set variable for NOTE ON and NOTE OFF (elsewhere likely, global variable)
+uint8_t DAC_TO_MIDI(uint8_t val){
+  uint8_t midi = 0;
+  if((val > 0) && (val < 48)) midi = val/4;
+  else midi = (val/4) - 1;
+
+  return midi;
+}
 
 /* USER CODE END 4 */
 

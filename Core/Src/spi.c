@@ -21,7 +21,8 @@
 #include "spi.h"
 
 /* USER CODE BEGIN 0 */
-
+uint8_t SPI_TX_Buffer[ SPI_LENGTH ];
+uint8_t SPI_RX_Buffer[ SPI_LENGTH ];
 /* USER CODE END 0 */
 
 SPI_HandleTypeDef hspi1;
@@ -117,5 +118,39 @@ void HAL_SPI_MspDeInit(SPI_HandleTypeDef* spiHandle)
 }
 
 /* USER CODE BEGIN 1 */
+void Init_ADC(void){
+  // start bit, necessary for transaction
+  SPI_TX_Buffer[0] = 0b00000001;
+  // read channel 0 initially (should be overwritten anyway)
+  SPI_TX_Buffer[1] = 0b10000000; // single ended, ch0 (top 4 bits)
+  // need to send third byte for full duplex, dont care
+  SPI_TX_Buffer[2] = 0b00000000;
+}
 
+uint32_t Read_ADC(uint8_t CS, uint8_t CH){
+  uint32_t ADC_Val;
+  SPI_TX_Buffer[1] = 0b10000000 | (CH << 4); // single ended, bits 6-4 specify channel (top 4 bits)
+  // check which ADC is being read from
+  if(CS == 0){
+    // pull CS low for selecting device
+    HAL_GPIO_WritePin(GPIOE, CS_0_Pin, GPIO_PIN_RESET);
+  }
+  else{
+    HAL_GPIO_WritePin(GPIOE, CS_1_Pin, GPIO_PIN_RESET);
+  }
+  // one full duplex interaction
+  HAL_SPI_TransmitReceive (&hspi1, SPI_TX_Buffer, SPI_RX_Buffer, 3, 1000);
+  // parse data according to datasheet
+  ADC_Val = (((SPI_RX_Buffer[1]&0x03)<<8)|SPI_RX_Buffer[2]);
+  // default CS to be high
+  if(CS == 0){
+    // pull CS low for selecting device
+    HAL_GPIO_WritePin(GPIOE, CS_0_Pin, GPIO_PIN_SET);
+  }
+  else{
+    HAL_GPIO_WritePin(GPIOE, CS_1_Pin, GPIO_PIN_SET);
+  }
+  
+  return ADC_Val;
+}
 /* USER CODE END 1 */

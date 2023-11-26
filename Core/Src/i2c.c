@@ -22,6 +22,11 @@
 
 /* USER CODE BEGIN 0 */
 
+//specify slave address (only one DAC, can have this be static)
+uint8_t slave_address = 0b01011000;
+//initialize I2C buffer
+uint8_t I2C_TX_Buffer[ I2C_LENGTH ]; //buffer for i2c data, should this be defined here or in main.c?? thinking here
+
 /* USER CODE END 0 */
 
 I2C_HandleTypeDef hi2c1;
@@ -136,5 +141,17 @@ void HAL_I2C_MspDeInit(I2C_HandleTypeDef* i2cHandle)
 }
 
 /* USER CODE BEGIN 1 */
+
+void Reset_DAC(void){
+  //reset dac registers
+  I2C_TX_Buffer[0] = 0b00010000; // send command byte, select OUT0
+  HAL_I2C_Master_Transmit(&hi2c1,slave_address,I2C_TX_Buffer,1,1000); //Sending in Blocking mode
+}
+
+void Set_DAC(uint8_t value){
+  I2C_TX_Buffer[0] = 0x0; // command byte, select OUT0
+  I2C_TX_Buffer[1] = value; // data byte, corresponds to each channel of one 8 channel DAC (eventually need 2 DACs)
+  HAL_I2C_Master_Transmit(&hi2c1,slave_address,I2C_TX_Buffer,2,1000); //Sending in Blocking mode
+}
 
 /* USER CODE END 1 */
