@@ -53,6 +53,16 @@ uint32_t ADC1_VAL[ 8 ]; // one element for each ADC channel (one device)
 uint32_t ADC2_VAL[ 8 ]; // one element for each ADC channel (one device)
 uint16_t KEYPRESS = 0;
 uint16_t KEYPRESSED = 0;
+// for test case (from tinyusb example)
+uint32_t note_pos = 0;
+
+// Store example melody as an array of note values
+uint8_t note_sequence[] =
+{
+  74,78,81,86,90,93,98,102,57,61,66,69,73,78,81,85,88,92,97,100,97,92,88,85,81,78,
+  74,69,66,62,57,62,66,69,74,78,81,86,90,93,97,102,97,93,90,85,81,78,73,68,64,61,
+  56,61,64,68,74,78,81,86,90,93,98,102
+};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -64,6 +74,7 @@ void READ_KEYPRESS(uint32_t adc1_val[], uint32_t adc2_val[]);
 uint8_t HALL_TO_DAC(uint32_t adc1_val[], uint32_t adc2_val[], int octave_num);
 uint8_t DAC_TO_MIDI(uint8_t val);
 void MIDI_TASK(int octave_num);
+void midi_task(void);
 
 /* USER CODE END PFP */
 
@@ -122,22 +133,26 @@ int main(void)
     tud_task();
 
     // poll to see if octave up button pressed
+    /*
     if (!HAL_GPIO_ReadPin(GPIOC, OCTAVE_UP_Pin) && !flag1){
       octave_num = octave_num + 1;
       if(octave_num > 4) octave_num = 4;
       flag1 = true;
     }
     if (HAL_GPIO_ReadPin(GPIOC, OCTAVE_UP_Pin)) flag1 = false;
+    */
 
     // poll to see if octave down switch pressed
+    /*
     if (!HAL_GPIO_ReadPin(GPIOC, OCTAVE_DOWN_Pin) && !flag2){
       octave_num = octave_num - 1;
       if(octave_num < 0) octave_num = 0;
       flag2 = true;
     }
     if (HAL_GPIO_ReadPin(GPIOC, OCTAVE_DOWN_Pin)) flag2 = false;
-
+    */
     // Read values from all channels of ADC_1
+    /*
     for (int i = 0; i < 8; i++) {
       ADC1_VAL[i] = Read_ADC(0,i); // CS = 0, CH = i
     }
@@ -145,20 +160,26 @@ int main(void)
     for (int i = 0; i < 8; i++) {
       ADC2_VAL[i] = Read_ADC(1,i); // CS = 1, CH = i
     }
-
+    */
     /* CHECK OUTPUT SWITCH, SEND 0x00 from DAC if in MIDI mode*/
 
     // corresponds to DAC (analog) mode
     // verify the configuration of mode select pin
+    /*
     if (!HAL_GPIO_ReadPin(GPIOC, MODE_SWITCH_Pin)){
       Set_DAC(HALL_TO_DAC(ADC1_VAL,ADC2_VAL,octave_num)); // data byte, corresponds to each channel of one 8 channel DAC (eventually need 2 DACs)
     }
+    */
     /* EVENTUALLY should send DAC = 0 (SET GATE also eventually) AND midi signal */
+    /*
     else{
       Set_DAC(0x0);
       READ_KEYPRESS(ADC1_VAL,ADC2_VAL);
       MIDI_TASK(octave_num);
     }
+    */
+
+    midi_task();
 
     /* USER CODE END WHILE */
 
@@ -450,6 +471,49 @@ uint8_t DAC_TO_MIDI(uint8_t val){
   else midi = (val/4) - 1;
 
   return midi;
+}
+
+void midi_task(void)
+{
+  static uint32_t start_ms = 0;
+
+  uint8_t const cable_num = 0; // MIDI jack associated with USB endpoint
+  uint8_t const channel   = 0; // 0 for channel 1
+
+  // The MIDI interface always creates input and output port/jack descriptors
+  // regardless of these being used or not. Therefore incoming traffic should be read
+  // (possibly just discarded) to avoid the sender blocking in IO
+  uint8_t packet[4];
+  while ( tud_midi_available() ) tud_midi_packet_read(packet);
+
+  // send note periodically
+  /*
+  if (board_millis() - start_ms < 286) return; // not enough time
+  start_ms += 286;
+  */
+
+  HAL_Delay(286);
+
+  // Previous positions in the note sequence.
+  int previous = (int) (note_pos - 1);
+
+  // If we currently are at position 0, set the
+  // previous position to the last note in the sequence.
+  if (previous < 0) previous = sizeof(note_sequence) - 1;
+
+  // Send Note On for current position at full velocity (127) on channel 1.
+  uint8_t note_on[3] = { 0x90 | channel, note_sequence[note_pos], 127 };
+  tud_midi_stream_write(cable_num, note_on, 3);
+
+  // Send Note Off for previous note.
+  uint8_t note_off[3] = { 0x80 | channel, note_sequence[previous], 0};
+  tud_midi_stream_write(cable_num, note_off, 3);
+
+  // Increment position
+  note_pos++;
+
+  // If we are at the end of the sequence, start over.
+  if (note_pos >= sizeof(note_sequence)) note_pos = 0;
 }
 
 /* USER CODE END 4 */

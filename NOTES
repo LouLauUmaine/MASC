@@ -11,3 +11,10 @@
 - verify orientation of mode select pin
 - check that all functions using GPIO pins are correctly swapped over from old code
 - go over making SPI and I2C buffers static (unaffected between function calls)
+
+11.28.23:
+- https://www.radioshuttle.de/en/turtle-en/nucleo-st-link-interface-en/ //useful link for flashing board
+- temporarily commented out all but midi task to test MIDIoverUSB
+
+11.30.23: 
+- test verified with PCB as MIDI USB Device!
