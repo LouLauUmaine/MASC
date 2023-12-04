@@ -143,6 +143,7 @@ int main(void)
     */
 
     // poll to see if octave down switch pressed
+
     /*
     if (!HAL_GPIO_ReadPin(GPIOC, OCTAVE_DOWN_Pin) && !flag2){
       octave_num = octave_num - 1;
@@ -151,8 +152,9 @@ int main(void)
     }
     if (HAL_GPIO_ReadPin(GPIOC, OCTAVE_DOWN_Pin)) flag2 = false;
     */
+
     // Read values from all channels of ADC_1
-    /*
+    
     for (int i = 0; i < 8; i++) {
       ADC1_VAL[i] = Read_ADC(0,i); // CS = 0, CH = i
     }
@@ -160,16 +162,18 @@ int main(void)
     for (int i = 0; i < 8; i++) {
       ADC2_VAL[i] = Read_ADC(1,i); // CS = 1, CH = i
     }
-    */
+    
     /* CHECK OUTPUT SWITCH, SEND 0x00 from DAC if in MIDI mode*/
 
     // corresponds to DAC (analog) mode
     // verify the configuration of mode select pin
+    
     /*
     if (!HAL_GPIO_ReadPin(GPIOC, MODE_SWITCH_Pin)){
       Set_DAC(HALL_TO_DAC(ADC1_VAL,ADC2_VAL,octave_num)); // data byte, corresponds to each channel of one 8 channel DAC (eventually need 2 DACs)
     }
     */
+    
     /* EVENTUALLY should send DAC = 0 (SET GATE also eventually) AND midi signal */
     /*
     else{
@@ -179,7 +183,8 @@ int main(void)
     }
     */
 
-    midi_task();
+    Set_DAC(HALL_TO_DAC(ADC1_VAL,ADC2_VAL,octave_num)); // for testing purposes, forget mode buttons
+    midi_task(); // DAC and MIDI concurrently, test if it works
 
     /* USER CODE END WHILE */
 
@@ -318,12 +323,12 @@ uint8_t HALL_TO_DAC(uint32_t adc1_val[], uint32_t adc2_val[], int octave_num) {
     
    for (int i = 0; i < 12; i++) {
         if (i < 6) {
-            if (adc1_val[i] > 600) {
+            if (adc1_val[i] > 450) {
                 channel_num = i;
                 break;
             }
         } else {
-            if (adc2_val[i - 6] > 600) {
+            if (adc2_val[i - 6] > 450) {
                 channel_num = i;
                 break;
             }
