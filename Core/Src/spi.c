@@ -144,7 +144,7 @@ uint32_t Read_ADC(uint8_t CS, uint8_t CH){
   ADC_Val = (((SPI_RX_Buffer[1]&0x03)<<8)|SPI_RX_Buffer[2]);
   // default CS to be high
   if(CS == 0){
-    // pull CS low for selecting device
+    // pull CS high for deselecting device
     HAL_GPIO_WritePin(GPIOE, CS_0_Pin, GPIO_PIN_SET);
   }
   else{

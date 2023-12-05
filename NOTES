@@ -18,3 +18,7 @@
 
 11.30.23: 
 - test verified with PCB as MIDI USB Device!
+
+12.4.23
+- tested ADC/DAC --> DAC does not work
+- adjusted hi2c1.Init.Timing to match DISCO project, yet to be tested (hopeful though)

@@ -55,6 +55,7 @@ uint16_t KEYPRESS = 0;
 uint16_t KEYPRESSED = 0;
 // for test case (from tinyusb example)
 uint32_t note_pos = 0;
+uint8_t DAC_VAL = 0;
 
 // Store example melody as an array of note values
 uint8_t note_sequence[] =
@@ -129,8 +130,6 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    /* Periodically call tinyUSB task */
-    tud_task();
 
     // poll to see if octave up button pressed
     /*
@@ -183,8 +182,13 @@ int main(void)
     }
     */
 
-    Set_DAC(HALL_TO_DAC(ADC1_VAL,ADC2_VAL,octave_num)); // for testing purposes, forget mode buttons
+   /* Periodically call tinyUSB task */
+    tud_task();
     midi_task(); // DAC and MIDI concurrently, test if it works
+    //DAC_VAL = HALL_TO_DAC(ADC1_VAL,ADC2_VAL,octave_num);
+    //Set_DAC(105);
+    //Set_DAC(DAC_VAL); // for testing purposes, forget mode buttons
+    Set_DAC(HALL_TO_DAC(ADC1_VAL,ADC2_VAL,octave_num));
 
     /* USER CODE END WHILE */
 
