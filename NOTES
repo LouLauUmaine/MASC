@@ -22,3 +22,10 @@
 12.4.23
 - tested ADC/DAC --> DAC does not work
 - adjusted hi2c1.Init.Timing to match DISCO project, yet to be tested (hopeful though)
+
+12.5.23
+- ADC, DAC and MIDI all working tentatively
+- DAC works tentatively: will output a fixed value, also outputs keypress from ADC when 
+    in debug, but does NOT work in real time just reading ADC and outputting to DAC 
+    UNLESS MIDI is also enabled (could be a timing issue? while loop too fast? doesn't
+    really make sense )

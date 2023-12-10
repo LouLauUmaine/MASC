@@ -131,7 +131,11 @@ int main(void)
   while (1)
   {
 
+    /* Periodically call tinyUSB task */
+    //tud_task();
+
     // poll to see if octave up button pressed
+    
     /*
     if (!HAL_GPIO_ReadPin(GPIOC, OCTAVE_UP_Pin) && !flag1){
       octave_num = octave_num + 1;
@@ -166,29 +170,34 @@ int main(void)
 
     // corresponds to DAC (analog) mode
     // verify the configuration of mode select pin
-    
-    /*
-    if (!HAL_GPIO_ReadPin(GPIOC, MODE_SWITCH_Pin)){
-      Set_DAC(HALL_TO_DAC(ADC1_VAL,ADC2_VAL,octave_num)); // data byte, corresponds to each channel of one 8 channel DAC (eventually need 2 DACs)
-    }
-    */
+
+    //if (!HAL_GPIO_ReadPin(GPIOC, MODE_SWITCH_Pin)){
+        DAC_VAL = HALL_TO_DAC(ADC1_VAL,ADC2_VAL,octave_num);
+        if(DAC_VAL){
+            HAL_GPIO_WritePin(GATE_GPIO_Port, GATE_Pin, GPIO_PIN_SET);
+            Set_DAC(DAC_VAL);
+        }
+        else{
+           HAL_GPIO_WritePin(GATE_GPIO_Port, GATE_Pin, GPIO_PIN_RESET);
+           Set_DAC(0x0);
+        }
+    //}
     
     /* EVENTUALLY should send DAC = 0 (SET GATE also eventually) AND midi signal */
-    /*
-    else{
-      Set_DAC(0x0);
-      READ_KEYPRESS(ADC1_VAL,ADC2_VAL);
-      MIDI_TASK(octave_num);
-    }
-    */
+    
+    //else{
+    //  Set_DAC(0x0);
+    //  READ_KEYPRESS(ADC1_VAL,ADC2_VAL);
+    //  MIDI_TASK(octave_num);
+    //}
 
-   /* Periodically call tinyUSB task */
+    /* Periodically call tinyUSB task */
     tud_task();
-    midi_task(); // DAC and MIDI concurrently, test if it works
-    //DAC_VAL = HALL_TO_DAC(ADC1_VAL,ADC2_VAL,octave_num);
-    //Set_DAC(105);
-    //Set_DAC(DAC_VAL); // for testing purposes, forget mode buttons
-    Set_DAC(HALL_TO_DAC(ADC1_VAL,ADC2_VAL,octave_num));
+    READ_KEYPRESS(ADC1_VAL,ADC2_VAL);
+    MIDI_TASK(octave_num);
+    //midi_task();
+
+
 
     /* USER CODE END WHILE */
 
@@ -313,9 +322,9 @@ void READ_KEYPRESS(uint32_t adc1_val[], uint32_t adc2_val[]) {
    KEYPRESS = 0x0;
    for (int i = 0; i < 12; i++) {
         if (i < 6) {
-            if (adc1_val[i] > 600) KEYPRESS |= 0b1 << i;
+            if (adc1_val[i] > 360) KEYPRESS |= 0b1 << i;
         } else {
-            if (adc2_val[i - 6] > 600) KEYPRESS |= 0b1 << i;
+            if (adc2_val[i - 6] > 360) KEYPRESS |= 0b1 << i;
         }
     }
 }
@@ -327,12 +336,12 @@ uint8_t HALL_TO_DAC(uint32_t adc1_val[], uint32_t adc2_val[], int octave_num) {
     
    for (int i = 0; i < 12; i++) {
         if (i < 6) {
-            if (adc1_val[i] > 450) {
+            if (adc1_val[i] > 360) {
                 channel_num = i;
                 break;
             }
         } else {
-            if (adc2_val[i - 6] > 450) {
+            if (adc2_val[i - 6] > 360) {
                 channel_num = i;
                 break;
             }
