@@ -48,9 +48,6 @@ void USB_IRQHandler(void)
 // MACRO TYPEDEF CONSTANT ENUM
 //--------------------------------------------------------------------+
 
-/* COMMENTED OUT BY LOUIS */
-//UART_HandleTypeDef UartHandle;
-
 void board_init(void) {
   board_clock_init();
 
@@ -71,22 +68,6 @@ void board_init(void) {
   __HAL_RCC_GPIOH_CLK_ENABLE();
   UART_CLK_EN();
 
-
-/* COMMENTED OUT BY LOUIS - JUST USE HAL_DELAY FOR TIMER?*/
-/*
-#if CFG_TUSB_OS  == OPT_OS_NONE
-  // 1ms tick timer
-  SysTick_Config(SystemCoreClock / 1000);
-#elif CFG_TUSB_OS == OPT_OS_FREERTOS
-  // If freeRTOS is used, IRQ priority is limit by max syscall ( smaller is higher )
-#if defined(USB_OTG_FS)
-  NVIC_SetPriority(OTG_FS_IRQn, configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY );
-#else
-  NVIC_SetPriority(USB_IRQn, configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY );
-#endif
-#endif
-*/
-
   /* Enable USB power on Pwrctrl CR2 register */
   /* Enable Power Clock*/
   __HAL_RCC_PWR_CLK_ENABLE();
@@ -101,21 +82,6 @@ void board_init(void) {
 
   GPIO_InitTypeDef  GPIO_InitStruct;
 
-  // LED
-  /* COMMENTED OUT BY LOUIS
-  GPIO_InitStruct.Pin = LED_PIN;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  HAL_GPIO_Init(LED_PORT, &GPIO_InitStruct);
-  */
-
-  // Button
-  /* COMMENTED OUT BY LOUIS 
-  GPIO_InitStruct.Pin = BUTTON_PIN;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(BUTTON_PORT, &GPIO_InitStruct);
-  */
 
   // IOSV bit MUST be set to access GPIO port G[2:15] 
   __HAL_RCC_PWR_CLK_ENABLE();
@@ -123,28 +89,6 @@ void board_init(void) {
 #if defined(PWR_CR2_IOSV)
   HAL_PWREx_EnableVddIO2();
 #endif
-  /* COMMENTED OUT BY LOUIS
-  // Uart
-  GPIO_InitStruct.Pin       = UART_TX_PIN | UART_RX_PIN;
-  GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull      = GPIO_PULLUP;
-  GPIO_InitStruct.Alternate = UART_GPIO_AF;
-  HAL_GPIO_Init(UART_GPIO_PORT, &GPIO_InitStruct);
-
-  UartHandle.Instance        = UART_DEV;
-  UartHandle.Init.BaudRate   = CFG_BOARD_UART_BAUDRATE;
-  UartHandle.Init.WordLength = UART_WORDLENGTH_8B;
-  UartHandle.Init.StopBits   = UART_STOPBITS_1;
-  UartHandle.Init.Parity     = UART_PARITY_NONE;
-  UartHandle.Init.HwFlowCtl  = UART_HWCONTROL_NONE;
-  UartHandle.Init.Mode       = UART_MODE_TX_RX;
-  UartHandle.Init.OverSampling = UART_OVERSAMPLING_16;
-  UartHandle.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
-  //UartHandle.Init.ClockPrescaler = UART_PRESCALER_DIV1;
-  UartHandle.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
-
-  HAL_UART_Init(&UartHandle);
-   */
 
   /* Configure USB FS GPIOs */
   /* Configure DM DP Pins */
@@ -188,18 +132,6 @@ void board_init(void) {
 // Board porting API
 //--------------------------------------------------------------------+
 
-/* COMMENTED OUT BY LOUIS
-void board_led_write(bool state) {
-  GPIO_PinState pin_state = (GPIO_PinState) (state ? LED_STATE_ON : (1 - LED_STATE_ON));
-  HAL_GPIO_WritePin(LED_PORT, LED_PIN, pin_state);
-}
-*/
-
-/* COMMENTED OUT BY LOUIS
-uint32_t board_button_read(void) {
-  return BUTTON_STATE_ACTIVE == HAL_GPIO_ReadPin(BUTTON_PORT, BUTTON_PIN);
-}
-*/
 
 size_t board_get_unique_id(uint8_t id[], size_t max_len) {
   (void) max_len;
@@ -213,47 +145,3 @@ size_t board_get_unique_id(uint8_t id[], size_t max_len) {
 
   return len;
 }
-
-/* COMMENTED OUT BY LOUIS
-int board_uart_read(uint8_t *buf, int len) {
-  (void) buf;
-  (void) len;
-  return 0;
-}
-
-int board_uart_write(void const *buf, int len) {
-  HAL_UART_Transmit(&UartHandle, (uint8_t *) (uintptr_t) buf, len, 0xffff);
-  return len;
-}
-*/
-
-/* COMMENTED OUT BY LOUIS
-#if CFG_TUSB_OS == OPT_OS_NONE
-volatile uint32_t system_ticks = 0;
-
-void SysTick_Handler(void) {
-  HAL_IncTick();
-  system_ticks++;
-}
-
-
-uint32_t board_millis(void) {
-  return system_ticks;
-}
-
-#endif
-*/
-
-/* COMMENTED OUT BY LOUIS 
-void HardFault_Handler(void) {
-  __asm("BKPT #0\n");
-}
-*/
-
-/* COMMENTED OUT BY LOUIS
-// Required by __libc_init_array in startup code if we are compiling using
-// -nostdlib/-nostartfiles.
-void _init(void) {
-
-}
-*/

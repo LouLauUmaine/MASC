@@ -25,7 +25,7 @@
 //specify slave address (only one DAC, can have this be static)
 uint8_t slave_address = 0b01011000;
 //initialize I2C buffer
-uint8_t I2C_TX_Buffer[ I2C_LENGTH ]; //buffer for i2c data, should this be defined here or in main.c?? thinking here
+uint8_t I2C_TX_Buffer[ I2C_LENGTH ]; //buffer for i2c data
 
 /* USER CODE END 0 */
 
@@ -43,7 +43,6 @@ void MX_I2C1_Init(void)
 
   /* USER CODE END I2C1_Init 1 */
   hi2c1.Instance = I2C1;
-  // hi2c1.Init.Timing = 0x00000E14;
   hi2c1.Init.Timing = 0x10909CEC;
   hi2c1.Init.OwnAddress1 = 0;
   hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
@@ -143,15 +142,15 @@ void HAL_I2C_MspDeInit(I2C_HandleTypeDef* i2cHandle)
 
 /* USER CODE BEGIN 1 */
 
-void Reset_DAC(void){
-  //reset dac registers
-  I2C_TX_Buffer[0] = 0b00010000; // send command byte, select OUT0
+void Reset_DAC(void) {
+  //reset dac registers, single byte
+  I2C_TX_Buffer[0] = 0b00010000;
   HAL_I2C_Master_Transmit(&hi2c1,slave_address,I2C_TX_Buffer,1,1000); //Sending in Blocking mode
 }
 
-void Set_DAC(uint8_t value){
+void Set_DAC(uint8_t value) {
   I2C_TX_Buffer[0] = 0x0; // command byte, select OUT0
-  I2C_TX_Buffer[1] = value; // data byte, corresponds to each channel of one 8 channel DAC (eventually need 2 DACs)
+  I2C_TX_Buffer[1] = value;
   HAL_I2C_Master_Transmit(&hi2c1,slave_address,I2C_TX_Buffer,2,1000); //Sending in Blocking mode
 }
 
