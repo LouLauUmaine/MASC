@@ -36,6 +36,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define THRESHOLD 200
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -132,29 +133,29 @@ int main(void)
   {
 
     /* Periodically call tinyUSB task */
-    //tud_task();
+    tud_task();
 
     // poll to see if octave up button pressed
     
-    /*
+    
     if (!HAL_GPIO_ReadPin(GPIOC, OCTAVE_UP_Pin) && !flag1){
       octave_num = octave_num + 1;
       if(octave_num > 4) octave_num = 4;
       flag1 = true;
     }
     if (HAL_GPIO_ReadPin(GPIOC, OCTAVE_UP_Pin)) flag1 = false;
-    */
+    
 
     // poll to see if octave down switch pressed
 
-    /*
+    
     if (!HAL_GPIO_ReadPin(GPIOC, OCTAVE_DOWN_Pin) && !flag2){
       octave_num = octave_num - 1;
       if(octave_num < 0) octave_num = 0;
       flag2 = true;
     }
     if (HAL_GPIO_ReadPin(GPIOC, OCTAVE_DOWN_Pin)) flag2 = false;
-    */
+    
 
     // Read values from all channels of ADC_1
     
@@ -171,7 +172,7 @@ int main(void)
     // corresponds to DAC (analog) mode
     // verify the configuration of mode select pin
 
-    //if (!HAL_GPIO_ReadPin(GPIOC, MODE_SWITCH_Pin)){
+    if (!HAL_GPIO_ReadPin(GPIOC, MODE_SWITCH_Pin)){
         DAC_VAL = HALL_TO_DAC(ADC1_VAL,ADC2_VAL,octave_num);
         if(DAC_VAL){
             HAL_GPIO_WritePin(GATE_GPIO_Port, GATE_Pin, GPIO_PIN_SET);
@@ -181,20 +182,22 @@ int main(void)
            HAL_GPIO_WritePin(GATE_GPIO_Port, GATE_Pin, GPIO_PIN_RESET);
            Set_DAC(0x0);
         }
-    //}
+    }
     
-    /* EVENTUALLY should send DAC = 0 (SET GATE also eventually) AND midi signal */
+    /* Set DAC = 0, GATE low, and midi signal */
     
-    //else{
-    //  Set_DAC(0x0);
-    //  READ_KEYPRESS(ADC1_VAL,ADC2_VAL);
-    //  MIDI_TASK(octave_num);
-    //}
+    else{
+        HAL_GPIO_WritePin(GATE_GPIO_Port, GATE_Pin, GPIO_PIN_RESET);
+        Set_DAC(0x0);
+        READ_KEYPRESS(ADC1_VAL,ADC2_VAL);
+        MIDI_TASK(octave_num);
+        //HAL_Delay(30);
+    }
 
     /* Periodically call tinyUSB task */
-    tud_task();
-    READ_KEYPRESS(ADC1_VAL,ADC2_VAL);
-    MIDI_TASK(octave_num);
+    //tud_task();
+    //READ_KEYPRESS(ADC1_VAL,ADC2_VAL);
+    //MIDI_TASK(octave_num);
     //midi_task();
 
 
@@ -322,10 +325,17 @@ void READ_KEYPRESS(uint32_t adc1_val[], uint32_t adc2_val[]) {
    KEYPRESS = 0x0;
    for (int i = 0; i < 12; i++) {
         if (i < 6) {
-            if (adc1_val[i] > 360) KEYPRESS |= 0b1 << i;
-        } else {
-            if (adc2_val[i - 6] > 360) KEYPRESS |= 0b1 << i;
-        }
+            if (adc1_val[i] < THRESHOLD){
+                HAL_Delay(50);
+                if (adc1_val[i] < THRESHOLD) KEYPRESS |= 0b1 << i;
+            }
+        } 
+        else {
+            if (adc2_val[i - 6] < THRESHOLD){
+                HAL_Delay(50);
+                if (adc2_val[i-6] < THRESHOLD) KEYPRESS |= 0b1 << i;
+            }
+        }   
     }
 }
 
@@ -336,14 +346,21 @@ uint8_t HALL_TO_DAC(uint32_t adc1_val[], uint32_t adc2_val[], int octave_num) {
     
    for (int i = 0; i < 12; i++) {
         if (i < 6) {
-            if (adc1_val[i] > 360) {
-                channel_num = i;
-                break;
+            if (adc1_val[i] < THRESHOLD) {
+                HAL_Delay(50);
+                if (adc1_val[i] < THRESHOLD){
+                    channel_num = i;
+                    break;
+                }
             }
-        } else {
-            if (adc2_val[i - 6] > 360) {
-                channel_num = i;
-                break;
+        } 
+        else {
+            if (adc2_val[i - 6] < THRESHOLD) {
+                HAL_Delay(50);
+                if (adc2_val[i - 6] < THRESHOLD) {
+                    channel_num = i;
+                    break;
+                }
             }
         }
     }
